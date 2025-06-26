@@ -218,9 +218,11 @@
 
             var getProxiedInvoiceFromNostr = async ( invoice, proxy ) => {
                 return new Promise( async resolve => {
+                    var delay = Math.floor( Math.random() * 3000 );
                     var msg = JSON.stringify({
-                        version: 1,
+                        version: 2,
                         invoice,
+                        delay,
                     });
                     var privkey = super_nostr.getPrivkey();
                     var pubkey = super_nostr.getPubkey( privkey );
@@ -239,6 +241,7 @@
                         var ptags = [ pubkey ];
                         // var ptags = null;
                         var events = await super_nostr.getEvents( relay, ids, authors, kinds, until, since, limit, etags, ptags );
+                        if ( !events.length ) resolve( "error" );
                         var msg_from_proxy = events[ 0 ];
                         msg_from_proxy.content = await super_nostr.alt_decrypt( privkey, msg_from_proxy.pubkey, msg_from_proxy.content );
                         resolve( JSON.parse( msg_from_proxy.content ).proxied_invoice );
@@ -303,7 +306,14 @@
                     }
                 }
                 showPage( 'main_page' );
-                if ( !proxied_invoice ) return alert( 'something went wrong, please try again' );
+                if ( !proxied_invoice || !isValidInvoice( invoice_to_proxy ) ) {
+                    showPage( 'main_page' );
+                    return document.getElementsByClassName( "main_page" )[ 0 ].innerHTML = `
+                        <h2>Error</h2>
+                        <p>Unknown error involving this proxy: ${proxy_to_use}</p>
+                        <p>Please share this error with the developer of this app so he can remove that proxy from the network</p>
+                    `;
+                }
                 var proxied_invoice_pmthash = getInvoicePmthash( proxied_invoice );
                 if ( proxied_invoice_pmthash !== payment_hash ) return document.getElementsByClassName( "main_page" )[ 0 ].innerHTML = `
                     <h2>Error</h2>

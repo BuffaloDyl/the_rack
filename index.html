@@ -16,15 +16,15 @@
                 font-family: Arial, sans-serif;
             }
             html {
-                max-width: 800px;
-                padding: 3rem 1rem;
-                margin: auto;
-                line-height: 1.25;
                 padding: 0;
             }
             body {
-                margin: 3rem 1rem;
+                background-color: #e3e3a6;
+                margin: 0;
                 word-wrap: break-word;
+                position: absolute;
+                top: 0px;
+                width: 100%;
             }
             h1 {
                 font-size: 2rem;
@@ -45,6 +45,39 @@
             .hidden {
                 display: none !important;
             }
+            .header {
+                width: 100%;
+                background-color: #e15ff5;
+                padding: 0.5rem 1.5rem;
+                border-bottom: 2px solid black;
+            }
+            .inner_header {
+                max-width: calc( 800px - 3rem );
+                margin: auto;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .non_header {
+                margin: 3rem 1rem;
+                max-width: 800px;
+                padding: 3rem 1rem;
+                margin: auto;
+                line-height: 1.25;
+            }
+            .white {
+                background-color: white;
+            }
+            .subtitle {
+                font-size: 65%;
+                font-style: italic;
+            }
+            .menu_icon {
+                display: none;
+                font-size: 220%;
+                margin-right: 1rem;
+                cursor: pointer;
+            }
             .bordered {
                 padding: 1rem;
                 border: 1px solid black;
@@ -64,51 +97,61 @@
         </script>
     </head>
     <body>
-        <h1>The Rack</h1>
-        <p>Manually stretch your lightning network payments</p>
-        <div class="main_page">
-            <div class="bordered">
-                <h2>Add a hop</h2>
-                <p>Paste an LN invoice</p>
-                <p><textarea class="invoice_to_proxy"></textarea></p>
-                <p><button class="submit_invoice">Add a hop</button></p>
-                <p>Extra hops in your payment: <span class="hop_count">0</span></p>
-                <p>Recommended: 3-6</p>
-            </div>
-            <div class="proxied_invoice_div hidden">
-                <div class="bordered">
-                    <h2>Your original invoice</h2>
-                    <p class="original_invoice"></p>
+        <div class="header">
+            <div class="inner_header">
+                <div>
+                    <h1>The Rack</h1>
+                    <p class="subtitle">Manually stretch your lightning network payments</p>
                 </div>
-                <div class="bordered">
-                    <h2>Your proxied invoice</h2>
-                    <p class="proxied_invoice"></p>
-                    <hr>
-                    <p>Payment hashes match: ✅</p>
-                    <hr>
-                    <p>Fees added:</p>
-                    <div class="fees_added"></div>
-                    <hr>
-                    <p><button class="submit_invoice">Add a hop</button></p>
+                <div class="menu_icon">
+                    ☰
                 </div>
-            </div>
-            <div class="network_info bordered">
-                <h2>Network info</h2>
-                <p>Proxies available: <span class="proxy_count">loading...</span></p>
-                <p>Want to grow the network? Consider running a proxy! You'll help others improve their privacy and maybe even earn money. Learn more here: <a href="https://github.com/supertestnet/the_rack" target="_blank">https://github.com/supertestnet/the_rack</a> (scroll to "How can I help?")</p>
-            </div>
-            <p><button class="confused">Confused? Click here</button></p>
-            <div class="explainer bordered hidden">
-                <h2>What is this?</h2>
-                <p>On the lightning network, payments pass through routing nodes called "hops." Each hop adds additional privacy to your payment, but each one also adds more latency and raises the likelihood of a payment failure.</p>
-                <p>Many lightning wallets focus on ensuring payments are fast and reliable, so they optimize payments to use as few hops as possible, which harms user privacy. This website lets you turn that around by using the excellent lnproxy network to manually add extra hops to your payments. (A proxy is a type of routing node on the lightning network that focuses on user privacy.)</p>
-                <p>To use the site, take any lightning network invoice, paste it into the form on this page, and click "Add a hop." The website will return a new lightning invoice with one extra hop added to your payment, and routing fees added on top. You can add additional hops to your payment by clicking the button more than once.</p>
-                <p>For good privacy, 3 extra hops are recommended. You may continue adding hops if more proxies are available, but more than 6 extra hops is not recommended, as payment reliability falls greatly with that many hops.</p>
-                <p><button class="close_explainer">Close this explainer</button></p>
             </div>
         </div>
-        <div class="loading_page hidden">
-            <p>loading...</p>
+        <div class="non_header">
+            <div class="main_page">
+                <div class="bordered white">
+                    <p>Paste an LN invoice</p>
+                    <p><textarea class="invoice_to_proxy"></textarea></p>
+                    <p><button class="submit_invoice">Add a hop</button></p>
+                    <p>Extra hops in your payment: <span class="hop_count">0</span></p>
+                    <p>Recommended: 3-6</p>
+                </div>
+                <div class="proxied_invoice_div white hidden">
+                    <div class="bordered">
+                        <h2>Your original invoice</h2>
+                        <p class="original_invoice"></p>
+                    </div>
+                    <div class="bordered white">
+                        <h2>Your proxied invoice</h2>
+                        <p class="proxied_invoice"></p>
+                        <hr>
+                        <p>Payment hashes match: ✅</p>
+                        <hr>
+                        <p>Fees added:</p>
+                        <div class="fees_added"></div>
+                        <hr>
+                        <p><button class="submit_invoice">Add a hop</button></p>
+                    </div>
+                </div>
+                <div class="network_info white bordered">
+                    <h2>Network info</h2>
+                    <p>Proxies available: <span class="proxy_count">loading...</span></p>
+                    <p>Want to grow the network? Consider running a proxy! You'll help others improve their privacy and maybe even earn money. Learn more here: <a href="https://github.com/supertestnet/the_rack" target="_blank">https://github.com/supertestnet/the_rack</a> (scroll to "How can I help?")</p>
+                </div>
+                <p><button class="confused">Confused? Click here</button></p>
+                <div class="explainer bordered white hidden">
+                    <h2>What is this?</h2>
+                    <p>On the lightning network, payments pass through routing nodes called "hops." Each hop adds additional privacy to your payment, but each one also adds more latency and raises the likelihood of a payment failure.</p>
+                    <p>Many lightning wallets focus on ensuring payments are fast and reliable, so they optimize payments to use as few hops as possible, which harms user privacy. This website lets you turn that around by using the excellent lnproxy network to manually add extra hops to your payments. (A proxy is a type of routing node on the lightning network that focuses on user privacy.)</p>
+                    <p>To use the site, take any lightning network invoice, paste it into the form on this page, and click "Add a hop." The website will return a new lightning invoice with one extra hop added to your payment, and routing fees added on top. You can add additional hops to your payment by clicking the button more than once.</p>
+                    <p>For good privacy, 3 extra hops are recommended. You may continue adding hops if more proxies are available, but more than 6 extra hops is not recommended, as payment reliability falls greatly with that many hops.</p>
+                    <p><button class="close_explainer">Close this explainer</button></p>
+                </div>
+            </div>
+            <div class="loading_page hidden">
+                <p>loading...</p>
+            </div>
         </div>
         <script>
             var invoice_to_proxy;
@@ -136,7 +179,10 @@
 
             var open_and_shut = () => {
                 if ( !$( '.explainer' ).classList.contains( "hidden" ) ) $( '.explainer' ).classList.add( "hidden" );
-                else $( '.explainer' ).classList.remove( "hidden" );
+                else {
+                    $( '.explainer' ).classList.remove( "hidden" );
+                    window.scrollBy( 0, 250 );
+                }
             }
 
             $( '.confused' ).onclick = open_and_shut;

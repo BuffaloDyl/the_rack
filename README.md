@@ -1,2 +1,2 @@
-# the_rack
+# The Rack
 Manually add extra hops to your lightning network payments

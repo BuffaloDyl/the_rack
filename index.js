@@ -597,8 +597,19 @@ var keyLooper = async () => {
         var delay = null;
         try {
             event.content = await super_nostr.alt_decrypt( privkey, event.pubkey, event.content );
-            delay = JSON.parse( event.content )[ "delay" ];
-            invoice_to_pay = JSON.parse( event.content )[ "invoice" ];
+            var json = JSON.parse( event.content );
+            if ( json.hasOwnProperty( "ignore" ) && json.ignore ) {
+                var msg = JSON.stringify({
+                    version: 2,
+                    wowfake_invoice: "lnbc2m1pnrjd6epp5xg37tadmcc479dt8c3rqk9mu4p08y8a5uvdd4repy4r8zzs40y4qdqqcqzzsxqrrs0fppqhsrcf2xszcp9nu4xgxzjwx6m3qnvlvrtsp5nft6epu8wxaxytyadq95ygyqvewuhuqh4zw6wevwvufxjr0zc0qq9qyyssqtafnv4cz4uuccg8xfw0ec2lgmr9u23rg85ac86zdnkn4mkq93krn283prlthqky5ujpv8x4cecs4634uu4gcw4f57l3haur8vg6myggp7z6erh",
+                });
+                var emsg = await super_nostr.alt_encrypt( privkey, event.pubkey, msg );
+                var reply = await super_nostr.prepEvent( privkey, emsg, 4, [ [ "p", event.pubkey ] ] );
+                super_nostr.sendEvent( reply, relays[ 0 ] );
+                return;
+            }
+            delay = json[ "delay" ];
+            invoice_to_pay = json[ "invoice" ];
             if ( !isValidInvoice( invoice_to_pay ) ) throw( "invalid invoice" );
             if ( typeof delay !== "number" || delay < 0 || delay > 5000 ) throw( "invalid delay" );
             var hash = getInvoicePmthash( invoice_to_pay );

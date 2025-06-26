@@ -166,7 +166,7 @@
                 proxies = proxies.filter( proxy => {if ( proxy.startsWith( "ht" ) ) return proxy});
                 events.forEach( event => {if ( !used_proxies.includes( event ) ) proxies.push( event.pubkey ) });
                 $( '.proxy_count' ).innerText = proxies.length;
-                await super_nostr.waitSomeSeconds( 300 );
+                await super_nostr.waitSomeSeconds( 10 );
                 getProxiesFromNostr();
             }
 

@@ -459,7 +459,7 @@ var payInvoice = ( invoice, blocks_til_invoice_that_pays_me_expires, max_outgoin
                 if ( body[ "payment_preimage" ] ) resolve( body[ "payment_preimage" ] );
                 else throw( `error: ${body[ "payment_error" ]}` );
             } catch ( e ) {
-                throw( `error: ${body[ "payment_error" ]}` );
+                resolve( `error: ${body[ "payment_error" ]}` );
             }
         });
     });
@@ -594,9 +594,13 @@ var keyLooper = async () => {
         var recipient = getRecipientFromNostrEvent( event );
         var privkey = my_nostr_keys[ pubkeys.indexOf( recipient ) ];
         var invoice_to_pay = null;
+        var delay = null;
         try {
             event.content = await super_nostr.alt_decrypt( privkey, event.pubkey, event.content );
-            var invoice_to_pay = JSON.parse( event.content )[ "invoice" ];
+            delay = JSON.parse( event.content )[ "delay" ];
+            invoice_to_pay = JSON.parse( event.content )[ "invoice" ];
+            if ( !isValidInvoice( invoice_to_pay ) ) throw( "invalid invoice" );
+            if ( typeof delay !== "number" || delay < 0 || delay > 5000 ) throw( "invalid delay" );
             var hash = getInvoicePmthash( invoice_to_pay );
             var amt = getInvoiceAmount( invoice_to_pay );
             var my_fee = Math.floor( ( ( ( amt * 1000 ) * ppm_fee ) / 1_000_000 ) + ( base_fee * 1000 ) );
@@ -608,7 +612,7 @@ var keyLooper = async () => {
             if ( min_expiry < 240 ) min_expiry = 240;
             var hodl_invoice = await getHodlInvoice( new_amt_msats, hash, min_expiry );
             var msg = JSON.stringify({
-                version: 1,
+                version: 2,
                 proxied_invoice: hodl_invoice,
             });
             var emsg = await super_nostr.alt_encrypt( privkey, event.pubkey, msg );
@@ -632,9 +636,15 @@ var keyLooper = async () => {
                 return console.log( 'error, the sender is not paying you a sufficient fee' );
             }
             try {
-                var preimage_in_base64 = await payInvoice( invoice_to_pay, blocks_til_invoice_that_pays_me_expires, max_outgoing_fee );
+                var response_from_node = await payInvoice( invoice_to_pay, blocks_til_invoice_that_pays_me_expires, max_outgoing_fee );
+                if ( response_from_node.startsWith( "error" ) ) throw( response_from_node );
+                var preimage_in_base64 = response_from_node;
                 var preimage_in_hex = Buffer.from( preimage_in_base64, "base64" ).toString( 'hex' );
-                settleHoldInvoice( preimage_in_hex );
+                console.log( 'waiting for this delay before settling:', delay );
+                setTimeout( () => {
+                    console.log( 'delay is done! time to settle' );
+                    settleHoldInvoice( preimage_in_hex );
+                }, delay );
             } catch ( e ) {
                 cancelHoldInvoice( hash );
                 return console.log( 'error:', e );
@@ -646,7 +656,7 @@ var keyLooper = async () => {
     console.log( connection );
     setTimeout( async () => {
         var ad = JSON.stringify({
-            version: 1,
+            version: 2,
             base_fee,
             ppm_fee,
         });

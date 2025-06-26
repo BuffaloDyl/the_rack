@@ -20,8 +20,8 @@ Yep! Bitcoiners who are interested in privacy are often willing to pay extra for
 4. Create a directory on your computer called `the_rack` and enter that directory
 5. Download a copy of the `index.js` file from this project and put it in `the_rack` directory
 6. Open the `index.js` file in a text editor (e.g. Microsoft Notepad) and modify the top four lines, namely: insert your admin macaroon, your LND endpoint, and set a base fee (recommended: 10 sats) and a parts-per-million fee (recommended: 5000 parts per million)
-7. Using your command line or terminal, run this command to turn your directory a nodejs app: `npm init -y`
-8. Install the app's dependencies using the following command: `npm i request crypto bolt11 noble-secp256k1 ws`
-9. Run the app: `node index.js`
+7. Using your command line or terminal, run this command to turn your directory into a nodejs app: `npm init -y`
+8. Install the app's dependencies by entering the following command into your command line or terminal: `npm i request crypto bolt11 noble-secp256k1 ws`
+9. Run the app by entering the following command into your command line or terminal: `node index.js`
 
 That's it! Your app should immediately list itself on nostr as a proxy for the lightning network, and people may select you as an extra hop in their payments. You earn extra fees and they get extra privacy. It's a win-win!

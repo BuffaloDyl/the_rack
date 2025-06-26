@@ -19,7 +19,7 @@ Yep! Bitcoiners who are interested in privacy are often willing to pay extra for
 3. Open some channels -- I recommend buying inbound capacity from one of these LSPs: https://supertestnet.github.io/list-of-channel-sellers/ -- make sure you have some inbound capacity AND some outbound capacity
 4. Create a directory on your computer called `the_rack` and enter that directory
 5. Download a copy of the `index.js` file from this project and put it in `the_rack` directory
-6. Modify the top four lines of the `index.js` file, namely: insert your admin macaroon, your LND endpoint, and set a base fee (recommended: 10 sats) and a parts-per-million fee (recommended: 5000 parts per million).
+6. Modify the top four lines of the `index.js` file, namely: insert your admin macaroon, your LND endpoint, and set a base fee (recommended: 10 sats) and a parts-per-million fee (recommended: 5000 parts per million)
 7. Using your command line or terminal, run this command to turn your directory a nodejs app: `npm init -y`
 8. Install the app's dependencies using the following command: `npm i request crypto bolt11 noble-secp256k1 ws`
 9. Run the app: `node index.js`

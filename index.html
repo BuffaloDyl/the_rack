@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no">
+        <title>The Rack</title>
+        <script src="https://bundle.run/buffer@6.0.3"></script>
+        <script>var Buffer = buffer.Buffer;</script>
+        <script src="https://supertestnet.github.io/bolt11_browser/bolt11.js"></script>
+        <script src="https://supertestnet.github.io/bankify/super_nostr.js"></script>
+        <script src="https://bundle.run/noble-secp256k1@1.2.14"></script>
+        <style>
+            * {
+                box-sizing: border-box;
+                font-size: 1.15rem;
+                font-family: Arial, sans-serif;
+            }
+            html {
+                max-width: 800px;
+                padding: 3rem 1rem;
+                margin: auto;
+                line-height: 1.25;
+                padding: 0;
+            }
+            body {
+                margin: 3rem 1rem;
+                word-wrap: break-word;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            input, textarea {
+                line-height: 1.25;
+                width: 100%;
+                height: 1.8rem;
+                font-size: 1.15rem;
+                border: 1px solid grey;
+            }
+            textarea {
+                height: 5rem;
+            }
+            .hidden {
+                display: none !important;
+            }
+            .bordered {
+                padding: 1rem;
+                border: 1px solid black;
+                border-radius: 1rem;
+                margin-bottom: 1rem;
+            }
+            @media screen and (max-width: 600px) {
+            }
+        </style>
+        <script>
+            var $ = document.querySelector.bind( document );
+            var $$ = document.querySelectorAll.bind( document );
+            var url_params = new URLSearchParams( window.location.search );
+            var url_keys = url_params.keys();
+            var $_GET = {}
+            for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
+        </script>
+    </head>
+    <body>
+        <h1>The Rack</h1>
+        <p>Manually add extra hops to your lightning network payments</p>
+        <div class="main_page">
+            <div class="bordered">
+                <h2>Add a hop</h2>
+                <p>Paste an LN invoice</p>
+                <p><textarea class="invoice_to_proxy"></textarea></p>
+                <p><button class="submit_invoice">Add a hop</button></p>
+                <p>Extra hops in your payment: <span class="hop_count">0</span></p>
+                <p>Recommended: 3-6</p>
+            </div>
+            <div class="proxied_invoice_div hidden">
+                <div class="bordered">
+                    <h2>Your original invoice</h2>
+                    <p class="original_invoice"></p>
+                </div>
+                <div class="bordered">
+                    <h2>Your proxied invoice</h2>
+                    <p class="proxied_invoice"></p>
+                    <hr>
+                    <p>Payment hashes match: ✅</p>
+                    <hr>
+                    <p>Fees added:</p>
+                    <div class="fees_added"></div>
+                    <hr>
+                    <p><button class="submit_invoice">Add a hop</button></p>
+                </div>
+            </div>
+            <div class="network_info bordered">
+                <h2>Network info</h2>
+                <p>Proxies available: <span class="proxy_count">loading...</span></p>
+                <p>Want to grow the network? Consider running a proxy! You'll help others improve their privacy and maybe even earn money. Learn more here: https://github.com/lnproxy/lnproxy-relay</p>
+            </div>
+            <p><button class="confused">Confused? Click here</button></p>
+            <div class="explainer bordered hidden">
+                <h2>What is this?</h2>
+                <p>On the lightning network, payments pass through routing nodes called "hops." Each hop adds additional privacy to your payment, but each one also adds more latency and raises the likelihood of a payment failure.</p>
+                <p>Many lightning wallets focus on ensuring payments are fast and reliable, so they optimize payments to use as few hops as possible, which harms user privacy. This website lets you turn that around by using the excellent lnproxy network to manually add extra hops to your payments. (A proxy is a type of routing node on the lightning network that focuses on user privacy.)</p>
+                <p>To use the site, take any lightning network invoice, paste it into the form on this page, and click "Add a hop." The website will return a new lightning invoice with one extra hop added to your payment, and routing fees added on top. You can add additional hops to your payment by clicking the button more than once.</p>
+                <p>For good privacy, 3 extra hops are recommended. You may continue adding hops if more proxies are available, but more than 6 extra hops is not recommended, as payment reliability falls greatly with that many hops.</p>
+                <p><button class="close_explainer">Close this explainer</button></p>
+            </div>
+        </div>
+        <div class="loading_page hidden">
+            <p>loading...</p>
+        </div>
+        <script>
+            var invoice_to_proxy;
+            var proxy_to_use;
+            var used_proxies = [];
+            var proxies = [];
+            var fees = [];
+            var original_amt = 0;
+            var payment_hash;
+
+            var isValidInvoice = invoice => {
+                try{
+                    return typeof bolt11.decode( invoice ) === "object";
+                } catch( e ) {
+                    return;
+                }
+            }
+
+            var getInvoicePmthash = invoice => {
+                var decoded = bolt11.decode( invoice );
+                var i; for ( i=0; i<decoded[ "tags" ].length; i++ ) {
+                    if ( decoded[ "tags" ][ i ][ "tagName" ] == "payment_hash" ) return decoded[ "tags" ][ i ][ "data" ].toString();
+                }
+            }
+
+            var open_and_shut = () => {
+                if ( !$( '.explainer' ).classList.contains( "hidden" ) ) $( '.explainer' ).classList.add( "hidden" );
+                else $( '.explainer' ).classList.remove( "hidden" );
+            }
+
+            $( '.confused' ).onclick = open_and_shut;
+            $( '.close_explainer' ).onclick = open_and_shut;
+
+            var showPage = page => {
+                $( '.main_page' ).classList.add( "hidden" );
+                $( '.loading_page' ).classList.add( "hidden" );
+                $( `.${page}` ).classList.remove( "hidden" );
+            }
+
+            var getProxiesFromNostr = async () => {
+                var relay = "wss://nostrue.com";
+                var ids = null;
+                var authors = null;
+                var kinds = [ 15061 ];
+                var until = null;
+                var since = Math.floor( Date.now() / 1000 ) - 300;
+                var events = await super_nostr.getEvents( relay, ids, authors, kinds, until, since );
+                if ( !events.length ) {
+                    $( '.proxy_count' ).innerText = proxies.length;
+                    await super_nostr.waitSomeSeconds( 3 );
+                    getProxiesFromNostr();
+                    return;
+                }
+                events.reverse();
+                proxies = proxies.filter( proxy => {if ( proxy.startsWith( "ht" ) ) return proxy});
+                events.forEach( event => {if ( !used_proxies.includes( event ) ) proxies.push( event.pubkey ) });
+                $( '.proxy_count' ).innerText = proxies.length;
+                await super_nostr.waitSomeSeconds( 300 );
+                getProxiesFromNostr();
+            }
+
+            var getProxiedInvoiceFromNostr = async ( invoice, proxy ) => {
+                return new Promise( async resolve => {
+                    var msg = JSON.stringify({
+                        version: 1,
+                        invoice,
+                    });
+                    var privkey = super_nostr.getPrivkey();
+                    var pubkey = super_nostr.getPubkey( privkey );
+                    var emsg = await super_nostr.alt_encrypt( privkey, proxy, msg );
+                    var event = await super_nostr.prepEvent( privkey, emsg, 4, [ [ "p", proxy ] ] );
+                    var relay = "wss://nostrue.com";
+                    setTimeout( async () => {
+                        //set up listener
+                        var ids = null;
+                        var authors = [ proxy ];
+                        var kinds = [ 4 ];
+                        var until = null;
+                        var since = Math.floor( Date.now() / 1000 ) - 15;
+                        var limit = 1;
+                        var etags = null;
+                        var ptags = [ pubkey ];
+                        // var ptags = null;
+                        var events = await super_nostr.getEvents( relay, ids, authors, kinds, until, since, limit, etags, ptags );
+                        var msg_from_proxy = events[ 0 ];
+                        msg_from_proxy.content = await super_nostr.alt_decrypt( privkey, msg_from_proxy.pubkey, msg_from_proxy.content );
+                        resolve( JSON.parse( msg_from_proxy.content ).proxied_invoice );
+                    }, 200 );
+                    setTimeout( () => {super_nostr.sendEvent( event, relay );}, 200 );
+                });
+            }
+
+            (async()=>{
+                var proxy_info = await fetch( 'https://raw.githubusercontent.com/lnproxy/lnproxy-webui2/refs/heads/main/assets/relays.json' );
+                var txt = await proxy_info.text()
+                proxies = JSON.parse( txt );
+                proxies = proxies.filter( item => {if ( !item.includes( ".onion/" ) && !used_proxies.includes( item ) ) return item;});
+                getProxiesFromNostr();
+            })();
+
+            $$( '.submit_invoice' ).forEach( button => button.onclick = async () => {
+                if ( !proxies.length ) return alert( `no additional proxies are available, your proxied invoice is ready.` );
+                invoice_to_proxy = $( '.invoice_to_proxy' ).value;
+                if ( !isValidInvoice( invoice_to_proxy ) ) {
+                    invoice_to_proxy = undefined;
+                    return alert( 'that was an invalid LN invoice, please try again' );
+                }
+                var invoice_amt = Number( bolt11.decode( invoice_to_proxy ).millisatoshis );
+                if ( !original_amt ) original_amt = invoice_amt;
+                if ( !original_amt ) return alert( 'this software does not support amountless invoices, add an amount and try again' );
+                var invoice_pmthash = getInvoicePmthash( invoice_to_proxy );
+                if ( !payment_hash ) payment_hash = invoice_pmthash;
+                showPage( 'loading_page' );
+                if ( !$( '.original_invoice' ).innerText ) $( '.original_invoice' ).innerText = invoice_to_proxy;
+                var proxied_invoice = null;
+                proxy_to_use = proxies[ Math.floor( Math.random() * proxies.length ) ];
+                if ( proxy_to_use.startsWith( "ht" ) ) {
+                    try {
+                        var info = await fetch( proxy_to_use, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: `{"invoice":"${invoice_to_proxy}","description":""}`
+                        });
+                        var json = await info.json();
+                        proxied_invoice = json.proxy_invoice;
+                    } catch ( e ) {
+                        showPage( 'main_page' );
+                        return document.getElementsByClassName( "main_page" )[ 0 ].innerHTML = `
+                            <h2>Error</h2>
+                            <p>Unknown error involving this proxy: ${proxy_to_use}</p>
+                            <p>Please share this error with the developer of this app so he can remove that proxy from the network</p>
+                        `;
+                    }
+                } else {
+                    try {
+                        proxied_invoice = await getProxiedInvoiceFromNostr( invoice_to_proxy, proxy_to_use );
+                    } catch ( e ) {
+                        showPage( 'main_page' );
+                        return document.getElementsByClassName( "main_page" )[ 0 ].innerHTML = `
+                            <h2>Error</h2>
+                            <p>Unknown error involving this proxy: ${proxy_to_use}</p>
+                            <p>Please share this error with the developer of this app so he can remove that proxy from the network</p>
+                        `;
+                    }
+                }
+                showPage( 'main_page' );
+                if ( !proxied_invoice ) return alert( 'something went wrong, please try again' );
+                var proxied_invoice_pmthash = getInvoicePmthash( proxied_invoice );
+                if ( proxied_invoice_pmthash !== payment_hash ) return document.getElementsByClassName( "main_page" )[ 0 ].innerHTML = `
+                    <h2>Error</h2>
+                    <p>The following proxy tried to scam you by using an incorrect payment hash: ${proxy_to_use}</p>
+                    <p>Please share this error with the developer of this app so he can remove that proxy from the network</p>
+                `;
+                $( '.proxied_invoice' ).innerText = proxied_invoice;
+                $( '.invoice_to_proxy' ).value = proxied_invoice;
+                $( '.proxied_invoice_div' ).classList.remove( "hidden" );
+                $( '.hop_count' ).innerText = Number( $( '.hop_count' ).innerText ) + 1;
+                used_proxies.push( proxy_to_use );
+                proxies = proxies.filter( item => {if ( !item.includes( ".onion/" ) && !used_proxies.includes( item ) ) return item;});
+                $( '.proxy_count' ).innerText = proxies.length;
+                var proxied_invoice_amt = Number( bolt11.decode( proxied_invoice ).millisatoshis );
+                var sum_of_fees = 0;
+                var original_fees = JSON.parse( JSON.stringify( fees ) );
+                fees.forEach( fee => sum_of_fees = sum_of_fees + fee );
+                var new_fee = proxied_invoice_amt - ( original_amt + sum_of_fees );
+                fees.push( new_fee );
+                $( '.fees_added' ).innerHTML = ``;
+                fees.forEach( ( fee, index ) => {
+                    $( '.fees_added' ).innerHTML += `<p>${( fee / 1000 ).toFixed( 3 )} sats - fee for hop ${index + 1}`;
+                });
+                var new_sum = 0;
+                fees.forEach( fee => new_sum = new_sum + fee );
+                $( '.fees_added' ).innerHTML += `<p>${( new_sum / 1000 ).toFixed( 3 )} sats - total</p>`;
+                $( '.fees_added' ).innerHTML += `<p>Original amount: ${( original_amt / 1000 ).toFixed( 3 )} sats</p>`;
+                $( '.fees_added' ).innerHTML += `<p>New amount: ${( proxied_invoice_amt / 1000 ).toFixed( 3 )} sats</p>`;
+            });
+        </script>
+    </body>
+</html>

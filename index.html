@@ -218,7 +218,7 @@
 
             var getProxiedInvoiceFromNostr = async ( invoice, proxy ) => {
                 return new Promise( async resolve => {
-                    var delay = Math.floor( Math.random() * 3000 );
+                    var delay = Math.floor( Math.random() * 5000 );
                     var msg = JSON.stringify({
                         version: 2,
                         invoice,

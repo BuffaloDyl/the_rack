@@ -16,7 +16,7 @@ Yep! Bitcoiners who are interested in privacy are often willing to pay extra for
 # How do I do it? Gimme gimme gimme!
 1. Install a copy of nodejs and the npm package manager
 2. Install a copy of LND, either from [here](https://github.com/lightningnetwork/lnd/releases/) or using something like [Voltage](https://www.voltage.cloud/)
-3. Open some channels -- I recommend buying inbound capacity from one of these LSPs: https://supertestnet.github.io/list-of-channel-sellers/ -- make sure you have some inbound capacity AND some outbound capacity
+3. Open some channels -- I recommend buying inbound capacity from one of [these LSPs](https://supertestnet.github.io/list-of-channel-sellers/) -- make sure you have some inbound capacity AND some outbound capacity
 4. Create a directory on your computer called `the_rack` and enter that directory
 5. Download a copy of the `index.js` file from this project and put it in `the_rack` directory
 6. Modify the top four lines of the `index.js` file, namely: insert your admin macaroon, your LND endpoint, and set a base fee (recommended: 10 sats) and a parts-per-million fee (recommended: 5000 parts per million)

@@ -394,7 +394,7 @@ async function checkInvoiceStatus( hash ) {
     }
     request.get( options, function( error, response, body ) {
         status = body[ "state" ];
-        console.log( "status:", status );
+        // console.log( "status:", status );
     });
     var time = 0;
     async function isDataSetYet( data_i_seek ) {
@@ -402,14 +402,14 @@ async function checkInvoiceStatus( hash ) {
             if ( data_i_seek != "ACCEPTED" ) {
                 setTimeout( async function() {
                     time = time + 1;
-                    console.log( "time:", time )
+                    // console.log( "time:", time )
                     if ( time >= 36000 ) {
                         resolve( "failure" );
                         return;
                     }
-                    console.log( "checking if buyer sent payment yet..." );
+                    // console.log( "checking if buyer sent payment yet..." );
                     status = await checkInvoiceStatusWithoutLoop( hash );
-                    console.log( status );
+                    // console.log( status );
                     var msg = await isDataSetYet( status );
                     resolve( msg );
                 }, 100 );
@@ -437,7 +437,7 @@ var payInvoice = ( invoice, blocks_til_invoice_that_pays_me_expires, max_outgoin
             allow_self_payment: true,
             cltv_limit: Number( reasonable_cltv_limit )
         }
-        console.log( requestBody );
+        // console.log( requestBody );
         var options = {
             url: endpoint + '/v1/channels/transactions',
             // Work-around for self-signed certificates.
@@ -449,7 +449,7 @@ var payInvoice = ( invoice, blocks_til_invoice_that_pays_me_expires, max_outgoin
             form: JSON.stringify( requestBody ),
         }
         request.post( options, function( error, response, body ) {
-            console.log( "here is the body:", body );
+            // console.log( "here is the body:", body );
             var nowdate = new Date().toLocaleDateString();
             var nowtime = new Date().toLocaleTimeString();
             var now = nowdate + " " + nowtime;
@@ -484,7 +484,7 @@ function settleHoldInvoice( preimage ) {
             form: JSON.stringify( requestBody ),
         }
         request.post( options, function( error, response, body ) {
-            console.log( 'settled, right?', body );
+            // console.log( 'settled, right?', body );
             if ( body.toString() === "{}" ) {
                 settled = "true";
             } else {
@@ -514,7 +514,7 @@ function cancelHoldInvoice( hash ) {
             form: JSON.stringify( requestBody ),
         }
         request.post( options, function( error, response, body ) {
-            console.log( 'canceled, right?', body );
+            // console.log( 'canceled, right?', body );
             if ( body.toString() === "{}" ) {
                 canceled = "true";
             } else {
@@ -564,7 +564,6 @@ var keyLooper = async () => {
     my_nostr_keys.unshift( new_privkey );
     if ( my_nostr_keys.length > 3 ) my_nostr_keys.length = 3;
     var pubkeys = my_nostr_keys.map( privkey => super_nostr.getPubkey( privkey ) );
-    console.log( pubkeys );
     Object.keys( super_nostr.sockets ).forEach( socket_id => {
         if ( stopped_connections.includes( socket_id ) ) return;
         stopped_connections.push( socket_id );
@@ -585,7 +584,7 @@ var keyLooper = async () => {
        socket.send( JSON.stringify( subscription ) );
     }
     var handleFunction = async message => {
-        console.log( message.data );
+        // console.log( message.data );
         var [ type, subId, event ] = JSON.parse( message.data );
         if ( !event || event === true ) return;
         if ( handled_messages.includes( event.id ) ) return;
@@ -664,16 +663,26 @@ var keyLooper = async () => {
     }
     var connection = await super_nostr.newPermanentConnection( relays[ 0 ], listenFunction, handleFunction );
     //advertise service
-    console.log( connection );
+    // console.log( connection );
     setTimeout( async () => {
-        var ad = JSON.stringify({
-            version: 2,
+        var prior_sigs = [];
+        if ( my_nostr_keys.length > 1 ) {
+            var i; for ( i=1; i<my_nostr_keys.length; i++ ) {
+                var privkey = my_nostr_keys[ i ];
+                var new_pubkey = super_nostr.getPubkey( my_nostr_keys[ 0 ] );
+                var sig = await nobleSecp256k1.schnorr.sign( new_pubkey, privkey );
+                prior_sigs.push( [ sig, super_nostr.getPubkey( privkey ) ] );
+            }
+        }
+        var ad = {
+            version: 3,
             base_fee,
             ppm_fee,
-        });
+        }
+        if ( prior_sigs.length ) ad.prior_sigs = prior_sigs;
+        ad = JSON.stringify( ad );
         var event = await super_nostr.prepEvent( my_nostr_keys[ 0 ], ad, 15061 );
         var event_id = await super_nostr.sendEvent( event, super_nostr.sockets[ connection ].socket );
-        console.log( 'ad sent', event_id );
     }, 1000 );
     await super_nostr.waitSomeSeconds( 300 );
     keyLooper();

@@ -161,6 +161,7 @@
             var fees = [];
             var original_amt = 0;
             var payment_hash;
+            var prior_keys = {}
 
             var isValidInvoice = invoice => {
                 try{
@@ -210,7 +211,42 @@
                 }
                 events.reverse();
                 proxies = proxies.filter( proxy => {if ( proxy.startsWith( "ht" ) ) return proxy});
-                events.forEach( event => {if ( !used_proxies.includes( event ) ) proxies.push( event.pubkey ) });
+                var i; for ( i=0; i<events.length; i++ ) {
+                    try {
+                        //whenever an ad is created after ads version 3, proxies say which of the
+                        //last 2 keys they used belonged to them, if any. That way, if a proxy
+                        //happens to switch to a new key while I am in the midst of wrapping an
+                        //invoice, I can detect that I've already used that proxy, which is good
+                        //because it would be bad to accidentally wrap an invoice twice with the
+                        //same proxy -- it would cost me extra money and provide me no extra
+                        //privacy.
+                        var event = events[ i ];
+                        var json = JSON.parse( event.content );
+                        if ( json.hasOwnProperty( "prior_sigs" ) ) {
+                            var prior_pubkeys = [];
+                            var j; for ( j=0; j<json.prior_sigs.length; j++ ) {
+                                var prior_sig = json.prior_sigs[ j ];
+                                var sig_is_valid = await nobleSecp256k1.schnorr.verify( prior_sig[ 0 ], event.pubkey, prior_sig[ 1 ] );
+                                //I take the proxy's current key and mark all prior keys that belonged to them
+                                if ( sig_is_valid ) prior_pubkeys.push( prior_sig[ 1 ] );
+                            }
+                            prior_keys[ event.pubkey ] = prior_pubkeys;
+                        }
+                    } catch( e ) {}
+                }
+                events.forEach( event => {
+                    var proxy_was_used_already = used_proxies.includes( event.pubkey );
+                    //when I am considering adding a proxy to my proxies list, I check if I have
+                    //already used them by seeing if a key on my "used_proxies" list shows up in
+                    //their prior keys list; if so, I do not add them to my proxies list, otherwise
+                    //I might accidentally pick them again and wrap an invoice with them twice
+                    Object.keys( prior_keys ).forEach( key => {
+                        var i; for ( i=0; i<prior_keys[ key ].length; i++ ) {
+                            if ( used_proxies.includes( prior_keys[ key ][ i ] ) ) proxy_was_used_already = true;
+                        }
+                    });
+                    if ( !proxy_was_used_already ) proxies.push( event.pubkey );
+                });
                 $( '.proxy_count' ).innerText = proxies.length;
                 await super_nostr.waitSomeSeconds( 10 );
                 getProxiesFromNostr();

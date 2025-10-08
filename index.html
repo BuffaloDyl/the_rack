@@ -196,7 +196,7 @@
             }
 
             var getProxiesFromNostr = async () => {
-                var relay = "wss://nostrue.com";
+                var relay = "wss://relay.primal.net";
                 var ids = null;
                 var authors = null;
                 var kinds = [ 15061 ];
@@ -264,7 +264,7 @@
                     var pubkey = super_nostr.getPubkey( privkey );
                     var emsg = await super_nostr.alt_encrypt( privkey, proxy, msg );
                     var event = await super_nostr.prepEvent( privkey, emsg, 4, [ [ "p", proxy ] ] );
-                    var relay = "wss://nostrue.com";
+                    var relay = "wss://relay,primal.net";
                     setTimeout( async () => {
                         //set up listener
                         var ids = null;

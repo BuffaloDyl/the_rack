@@ -264,7 +264,7 @@
                     var pubkey = super_nostr.getPubkey( privkey );
                     var emsg = await super_nostr.alt_encrypt( privkey, proxy, msg );
                     var event = await super_nostr.prepEvent( privkey, emsg, 4, [ [ "p", proxy ] ] );
-                    var relay = "wss://relay,primal.net";
+                    var relay = "wss://relay.primal.net";
                     setTimeout( async () => {
                         //set up listener
                         var ids = null;
